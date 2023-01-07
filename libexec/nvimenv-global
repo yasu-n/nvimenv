@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+#
+# Summary: Set or show the global Ruby version
+#
+# Usage: nvimenv global <version>
+#
+# Sets the global Ruby version. You can override the global version at
+# any time by setting a directory-specific version with `nvimenv local'
+# or by setting the `NVIMENV_VERSION' environment variable.
+#
+# <version> should be a string matching a Ruby version known to nvimenv.
+# The special version string `system' will use your default system Ruby.
+# Run `nvimenv versions' for a list of available Ruby versions.
+
+set -e
+[ -n "$NVIMENV_DEBUG" ] && set -x
+
+# Provide nvimenv completions
+if [ "$1" = "--complete" ]; then
+  echo system
+  exec nvimenv-versions --bare
+fi
+
+NVIMENV_VERSION="$1"
+NVIMENV_VERSION_FILE="${NVIMENV_ROOT}/version"
+
+if [ -n "$NVIMENV_VERSION" ]; then
+  nvimenv-version-file-write "$NVIMENV_VERSION_FILE" "$NVIMENV_VERSION"
+else
+  nvimenv-version-file-read "$NVIMENV_VERSION_FILE" ||
+  nvimenv-version-file-read "${NVIMENV_ROOT}/global" ||
+  nvimenv-version-file-read "${NVIMENV_ROOT}/default" ||
+  echo system
+fi

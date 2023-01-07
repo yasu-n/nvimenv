@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+#
+# Summary: Set or show the shell-specific nvim version
+#
+# Usage: nvimenv shell <version>
+#        nvimenv shell --unset
+#
+# Sets a shell-specific nvim version by setting the `NVIMENV_VERSION'
+# environment variable in your shell. This version overrides local
+# application-specific versions and the global version.
+#
+# <version> should be a string matching a nvim version known to nvimenv.
+# The special version string `system' will use your default system nvim.
+# Run `nvimenv versions' for a list of available nvim versions.
+
+set -e
+[ -n "$NVIMENV_DEBUG" ] && set -x
+
+# Provide nvimenv completions
+if [ "$1" = "--complete" ]; then
+  echo --unset
+  echo system
+  exec nvimenv-versions --bare
+fi
+
+version="$1"
+
+if [ -z "$version" ]; then
+  if [ -z "$NVIMENV_VERSION" ]; then
+    echo "nvimenv: no shell-specific version configured" >&2
+    exit 1
+  else
+    echo "echo \"\$NVIMENV_VERSION\""
+    exit
+  fi
+fi
+
+if [ "$version" = "--unset" ]; then
+  echo "unset NVIMENV_VERSION"
+  exit
+fi
+
+# Make sure the specified version is installed.
+if nvimenv-prefix "$version" >/dev/null; then
+  echo "export NVIMENV_VERSION=\"${version}\""
+else
+  echo "return 1"
+  exit 1
+fi

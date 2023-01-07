@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+#
+# `nvim-local-exec` is a drop-in replacement for the standard vim 
+# shebang line:
+#
+#    #!/usr/bin/env nvim-local-exec
+#
+# Use it for scripts inside a project with an `.nvim-version`
+# file. When you run the scripts, they'll use the project-specified
+# vim version, regardless of what directory they're run from. Useful
+# for e.g. running project tasks in cron scripts without needing to
+# `cd` into the project first.
+
+set -e
+export NVIMENV_DIR="${1%/*}"
+
+[ -n "$NVIMENV_SILENCE_WARNINGS" ] || {
+  echo "vimenv: \`nvim-local-exec' is deprecated and will be removed in the next release."
+  echo "       To upgrade: https://github.com/yasu-n/nvimenv/wiki/vim-local-exec"
+  echo
+} >&2
+
+exec vim "$@"

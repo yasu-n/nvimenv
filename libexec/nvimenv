@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+set -e
+export -n CDPATH
+
+if [ "$1" = "--debug" ]; then
+  export NVIMENV_DEBUG=1
+  shift
+fi
+
+if [ -n "$NVIMENV_DEBUG" ]; then
+  export PS4='+ [${BASH_SOURCE##*/}:${LINENO}] '
+  set -x
+fi
+
+resolve_link() {
+  $(type -p greadlink readlink | head -1) "$1"
+}
+
+abs_dirname() {
+  local cwd="$(pwd)"
+  local path="$1"
+
+  while [ -n "$path" ]; do
+    cd "${path%/*}"
+    local name="${path##*/}"
+    path="$(resolve_link "$name" || true)"
+  done
+
+  pwd
+  cd "$cwd"
+}
+
+if [ -z "${NVIMENV_ROOT}" ]; then
+  NVIMENV_ROOT="${HOME}/.nvimenv"
+else
+  NVIMENV_ROOT="${NVIMENV_ROOT%/}"
+fi
+export NVIMENV_ROOT
+
+if [ -z "${NVIMENV_DIR}" ]; then
+  NVIMENV_DIR="$(pwd)"
+else
+  cd "$NVIMENV_DIR" 2>/dev/null || {
+    echo "nvimenv: cannot change working directory to \`$NVIMENV_DIR'"
+    exit 1
+  } >&2
+  NVIMENV_DIR="$(pwd)"
+  cd "$OLDPWD"
+fi
+export NVIMENV_DIR
+
+
+shopt -s nullglob
+
+bin_path="$(abs_dirname "$0")"
+for plugin_bin in "${NVIMENV_ROOT}/plugins/"*/bin; do
+  bin_path="${bin_path}:${plugin_bin}"
+done
+export PATH="${bin_path}:${PATH}"
+
+hook_path="${NVIMENV_HOOK_PATH}:${NVIMENV_ROOT}/nvimenv.d:/usr/local/etc/nvimenv.d:/etc/nvimenv.d:/usr/lib/nvimenv/hooks"
+for plugin_hook in "${NVIMENV_ROOT}/plugins/"*/etc/nvimenv.d; do
+  hook_path="${hook_path}:${plugin_hook}"
+done
+export NVIMENV_HOOK_PATH="$hook_path"
+
+shopt -u nullglob
+
+
+command="$1"
+case "$command" in
+"" | "-h" | "--help" )
+  echo -e "$(nvimenv---version)\n$(nvimenv-help)" >&2
+  ;;
+"-v" )
+  exec nvimenv---version
+  ;;
+* )
+  command_path="$(command -v "nvimenv-$command" || true)"
+  if [ -z "$command_path" ]; then
+    echo "nvimenv: no such command \`$command'" >&2
+    exit 1
+  fi
+
+  shift 1
+  exec "$command_path" "$@"
+  ;;
+esac

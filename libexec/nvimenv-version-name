@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# Summary: Show the current nvim version
+set -e
+[ -n "$NVIMENV_DEBUG" ] && set -x
+
+if [ -z "$NVIMENV_VERSION" ]; then
+  NVIMENV_VERSION_FILE="$(nvimenv-version-file)"
+  NVIMENV_VERSION="$(nvimenv-version-file-read "$NVIMENV_VERSION_FILE" || true)"
+fi
+
+if [ -z "$NVIMENV_VERSION" ] || [ "$NVIMENV_VERSION" = "system" ]; then
+  echo "system"
+  exit
+fi
+
+version_exists() {
+  local version="$1"
+  [ -d "${NVIMENV_ROOT}/versions/${version}" ]
+}
+
+if version_exists "$NVIMENV_VERSION"; then
+  echo "$NVIMENV_VERSION"
+elif version_exists "${NVIMENV_VERSION#nvim-}"; then
+  { echo "warning: ignoring extraneous \`nvim-' prefix in version \`${NVIMENV_VERSION}'"
+    echo "         (set by $(nvimenv-version-origin))"
+  } >&2
+  echo "${NVIMENV_VERSION#nvim-}"
+else
+  echo "nvimenv: version \`$NVIMENV_VERSION' is not installed" >&2
+  exit 1
+fi

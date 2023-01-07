@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+#
+# Summary: Display the full path to an executable
+#
+# Usage: nvimenv which <command>
+#
+# Displays the full path to the executable that nvimenv will invoke when
+# you run the given command.
+
+set -e
+[ -n "$NVIMENV_DEBUG" ] && set -x
+
+# Provide nvimenv completions
+if [ "$1" = "--complete" ]; then
+  exec nvimenv shims --short
+fi
+
+expand_path() {
+  if [ ! -d "$1" ]; then
+    return 1
+  fi
+
+  local cwd="$(pwd)"
+  cd "$1"
+  pwd
+  cd "$cwd"
+}
+
+remove_from_path() {
+  local path_to_remove="$(expand_path "$1")"
+  local result=""
+
+  if [ -z "$path_to_remove" ]; then
+    echo "${PATH}"
+    return
+  fi
+
+  local paths
+  IFS=: paths=($PATH)
+
+  for path in "${paths[@]}"; do
+    path="$(expand_path "$path" || true)"
+    if [ -n "$path" ] && [ "$path" != "$path_to_remove" ]; then
+      result="${result}${path}:"
+    fi
+  done
+
+  echo "${result%:}"
+}
+
+NVIMENV_VERSION="$(nvimenv-version-name)"
+NVIMENV_COMMAND="$1"
+
+if [ -z "$NVIMENV_COMMAND" ]; then
+  nvimenv-help --usage which >&2
+  exit 1
+fi
+
+if [ "$NVIMENV_VERSION" = "system" ]; then
+  PATH="$(remove_from_path "${NVIMENV_ROOT}/shims")"
+  NVIMENV_COMMAND_PATH="$(command -v "$NVIMENV_COMMAND" || true)"
+else
+  NVIMENV_COMMAND_PATH="${NVIMENV_ROOT}/versions/${NVIMENV_VERSION}/bin/${NVIMENV_COMMAND}"
+fi
+
+for script in $(nvimenv-hooks which); do
+  source "$script"
+done
+
+if [ -x "$NVIMENV_COMMAND_PATH" ]; then
+  echo "$NVIMENV_COMMAND_PATH"
+else
+  echo "nvimenv: $NVIMENV_COMMAND: command not found" >&2
+
+  versions="$(nvimenv-whence "$NVIMENV_COMMAND" || true)"
+  if [ -n "$versions" ]; then
+    { echo
+      echo "The \`$1' command exists in these nvim versions:"
+      echo "$versions" | sed 's/^/  /g'
+      echo
+    } >&2
+  fi
+
+  exit 127
+fi

@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Usage: nvimenv version-file-write <file> <version>
+
+set -e
+[ -n "$NVIMENV_DEBUG" ] && set -x
+
+NVIMENV_VERSION_FILE="$1"
+NVIMENV_VERSION="$2"
+
+if [ -z "$NVIMENV_VERSION" ] || [ -z "$NVIMENV_VERSION_FILE" ]; then
+  nvimenv-help --usage version-file-write >&2
+  exit 1
+fi
+
+# Make sure the specified version is installed.
+nvimenv-prefix "$NVIMENV_VERSION" >/dev/null
+
+# Write the version out to disk.
+echo "$NVIMENV_VERSION" > "$NVIMENV_VERSION_FILE"

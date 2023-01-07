@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# Summary: List all nvim versions that contain the given executable
+# Usage: nvimenv whence [--path] <command>
+
+set -e
+[ -n "$NVIMENV_DEBUG" ] && set -x
+
+# Provide nvimenv completions
+if [ "$1" = "--complete" ]; then
+  echo --path
+  exec nvimenv shims --short
+fi
+
+if [ "$1" = "--path" ]; then
+  print_paths="1"
+  shift
+else
+  print_paths=""
+fi
+
+whence() {
+  local command="$1"
+  nvimenv-versions --bare | while read version; do
+    path="$(nvimenv-prefix "$version")/bin/${command}"
+    if [ -x "$path" ]; then
+      [ "$print_paths" ] && echo "$path" || echo "$version"
+    fi
+  done
+}
+
+NVIMENV_COMMAND="$1"
+if [ -z "$NVIMENV_COMMAND" ]; then
+  nvimenv-help --usage whence >&2
+  exit 1
+fi
+
+result="$(whence "$NVIMENV_COMMAND")"
+[ -n "$result" ] && echo "$result"

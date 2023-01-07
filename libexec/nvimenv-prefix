@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# Summary: Display prefix for a nvim version
+# Usage: nvimenv prefix [<version>]
+#
+# Displays the directory where a nvim version is installed. If no
+# version is given, `nvimenv prefix' displays the location of the
+# currently selected version.
+
+set -e
+[ -n "$NVIMENV_DEBUG" ] && set -x
+
+# Provide nvimenv completions
+if [ "$1" = "--complete" ]; then
+  echo system
+  exec nvimenv-versions --bare
+fi
+
+if [ -n "$1" ]; then
+  export NVIMENV_VERSION="$1"
+elif [ -z "$NVIMENV_VERSION" ]; then
+  NVIMENV_VERSION="$(nvimenv-version-name)"
+fi
+
+if [ "$NVIMENV_VERSION" = "system" ]; then
+  if NVIM_PATH="$(nvimenv-which nvim)"; then
+    NVIM_PATH="${NVIM_PATH%/*}"
+    NVIMENV_PREFIX_PATH="${NVIM_PATH%/bin}"
+    echo "${NVIMENV_PREFIX_PATH:-/}"
+    exit
+  fi
+  echo "nvimenv: system version not found in PTH" >&2
+  exit 1
+fi
+
+NVIMENV_PREFIX_PATH="${NVIMENV_ROOT}/versions/${NVIMENV_VERSION}"
+if [ ! -d "$NVIMENV_PREFIX_PATH" ]; then
+  echo "nvimenv: version \`${NVIMENV_VERSION}' not installed" >&2
+  exit 1
+fi
+
+echo "$NVIMENV_PREFIX_PATH"

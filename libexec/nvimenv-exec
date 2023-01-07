@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+#
+# Summary: Run an executable with the selected Ruby version
+#
+# Usage: nvimenv exec <command> [arg1 arg2...]
+#
+# Runs an executable by first preparing PATH so that the selected Ruby
+# version's `bin' directory is at the front.
+#
+# For example, if the currently selected Ruby version is 1.9.3-p327:
+#   nvimenv exec bundle install
+#
+# is equivalent to:
+#   PATH="$NVIMENV_ROOT/versions/1.9.3-p327/bin:$PATH" bundle install
+
+set -e
+[ -n "$NVIMENV_DEBUG" ] && set -x
+
+# Provide nvimenv completions
+if [ "$1" = "--complete" ]; then
+  exec nvimenv shims --short
+fi
+
+export NVIMENV_VERSION="$(nvimenv-version-name)"
+NVIMENV_COMMAND="$1"
+
+if [ -z "$NVIMENV_COMMAND" ]; then
+  nvimenv-help --usage exec >&2
+  exit 1
+fi
+
+NVIMENV_COMMAND_PATH="$(nvimenv-which "$NVIMENV_COMMAND")"
+NVIMENV_BIN_PATH="${NVIMENV_COMMAND_PATH%/*}"
+
+for script in $(nvimenv-hooks exec); do
+  source "$script"
+done
+
+shift 1
+if [ "$NVIMENV_VERSION" != "system" ]; then
+  export PATH="${NVIMENV_BIN_PATH}:${PATH}"
+fi
+exec -a "$NVIMENV_COMMAND" "$NVIMENV_COMMAND_PATH" "$@"

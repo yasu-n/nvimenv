@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Usage: nvimenv completions <command> [arg1 arg2...]
+
+set -e
+[ -n "$NVIMENV_DEBUG" ] && set -x
+
+COMMAND="$1"
+if [ -z "$COMMAND" ]; then
+  nvimenv-help --usage completions >&2
+  exit 1
+fi
+
+COMMAND_PATH="$(command -v "nvimenv-$COMMAND" || command -v "nvimenv-sh-$COMMAND")"
+if grep -i "^# provide nvimenv completions" "$COMMAND_PATH" >/dev/null; then
+  shift
+  exec "$COMMAND_PATH" --complete "$@"
+fi

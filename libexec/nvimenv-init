@@ -1,0 +1,154 @@
+#!/usr/bin/env bash
+# Summary: Configure the shell environment for nvimenv
+# Usage: eval "$(nvimenv init - [--no-rehash] [<shell>])"
+
+set -e
+[ -n "$NVIMENV_DEBUG" ] && set -x
+
+# Provide nvimenv completions
+if [ "$1" = "--complete" ]; then
+  echo -
+  echo --no-rehash
+  echo bash
+  echo fish
+  echo ksh
+  echo zsh
+  exit
+fi
+
+print=""
+no_rehash=""
+for args in "$@"
+do
+  if [ "$args" = "-" ]; then
+    print=1
+    shift
+  fi
+
+  if [ "$args" = "--no-rehash" ]; then
+    no_rehash=1
+    shift
+  fi
+done
+
+shell="$1"
+if [ -z "$shell" ]; then
+  shell="$(ps -p "$PPID" -o 'args=' 2>/dev/null || true)"
+  shell="${shell%% *}"
+  shell="${shell##-}"
+  shell="${shell:-$SHELL}"
+  shell="${shell##*/}"
+fi
+
+root="${0%/*}/.."
+
+if [ -z "$print" ]; then
+  case "$shell" in
+  bash )
+    if [ -f "${HOME}/.bashrc" ] && [ ! -f "${HOME}/.bash_profile" ]; then
+      profile='~/.bashrc'
+    else
+      profile='~/.bash_profile'
+    fi
+    ;;
+  zsh )
+    profile='~/.zshrc'
+    ;;
+  ksh )
+    profile='~/.profile'
+    ;;
+  fish )
+    profile='~/.config/fish/config.fish'
+    ;;
+  * )
+    profile='your profile'
+    ;;
+  esac
+
+  { echo "# Load nvimenv automatically by adding"
+    echo "# the following to ${profile}:"
+    echo
+    case "$shell" in
+    fish )
+      echo 'nvimenv init - | source'
+      ;;
+    * )
+      echo 'eval "$(nvimenv init -)"'
+      ;;
+    esac
+    echo
+  } >&2
+
+  exit 1
+fi
+
+mkdir -p "${NVIMENV_ROOT}/"{shims,versions}
+
+case "$shell" in
+fish )
+  echo "set -gx PATH '${NVIMENV_ROOT}/shims' \$PATH"
+  echo "set -gx NVIMENV_SHELL $shell"
+;;
+* )
+  echo 'export PATH="'${NVIMENV_ROOT}'/shims:${PATH}"'
+  echo "export NVIMENV_SHELL=$shell"
+;;
+esac
+
+completion="${root}/completions/nvimenv.${shell}"
+if [ -r "$completion" ]; then
+  echo "source '$completion'"
+fi
+
+if [ -z "$no_rehash" ]; then
+  echo 'command nvimenv rehash 2>/dev/null'
+fi
+
+commands=(`nvimenv-commands --sh`)
+case "$shell" in
+fish )
+  cat <<EOS
+function nvimenv 
+  set command \$argv[1]
+  set -e argv[1]
+
+  switch "\$command"
+  case ${commands[*]}
+    source (nvimenv "sh-\$command" \$argv|psub)
+  case '*'
+    command nvimenv "\$command" \$argv
+  end
+end
+EOS
+  ;;
+ksh )
+  cat <<EOS
+function nvimenv {
+  typeset command
+EOS
+  ;;
+* )
+  cat <<EOS
+nvimenv() {
+  local command
+EOS
+  ;;
+esac
+
+if [ "$shell" != "fish" ]; then
+IFS="|"
+cat <<EOS
+  command="\${1:-}"
+  if [ "\$#" -gt 0 ]; then
+    shift
+  fi
+
+  case "\$command" in
+  ${commands[*]})
+    eval "\$(nvimenv "sh-\$command" "\$@")";;
+  *)
+    command nvimenv "\$command" "\$@";;
+  esac
+}
+EOS
+fi
