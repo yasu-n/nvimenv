@@ -86,7 +86,7 @@ mkdir -p "${NVIMENV_ROOT}/"{shims,versions}
 
 case "$shell" in
 fish )
-  echo "set -gx PATH '${NVIMENV_ROOT}/shims' \$PATH"
+  echo "fish_add_path '${NVIMENV_ROOT}/shims'"
   echo "set -gx NVIMENV_SHELL $shell"
 ;;
 * )
